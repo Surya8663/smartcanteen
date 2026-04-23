@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#FF6B35" />
+    <meta name="description" content="Skip the queue. Order smart. Never waste food again." />
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="SmartCanteen" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="SmartCanteen" />
+    <meta property="og:description" content="Skip the queue. Order smart. Never waste food again." />
+    <meta name="twitter:card" content="summary_large_image" />
+    
+    <title>SmartCanteen</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='85' font-size='80'>🍽️</text></svg>" />
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script>
+      // In local dev, clear stale SW/caches before app bootstrap to avoid React/HMR cache corruption.
+      (function clearDevServiceWorkerBeforeBoot() {
+        const isLocalDevHost =
+          window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+        if (!isLocalDevHost || !('serviceWorker' in navigator)) return;
+
+        const reloadFlag = 'sc-dev-sw-cleared';
+
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          if (!registrations.length) return;
+
+          Promise.all(registrations.map((registration) => registration.unregister())).finally(() => {
+            const clearCaches = 'caches' in window
+              ? caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+              : Promise.resolve();
+
+            clearCaches.finally(() => {
+              if (!sessionStorage.getItem(reloadFlag)) {
+                sessionStorage.setItem(reloadFlag, '1');
+                window.location.reload();
+              }
+            });
+          });
+        });
+      })();
+    </script>
+
+    <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- PWA Service Worker Registration -->
+    <script>
+      const isLocalDevHost =
+        window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          if (isLocalDevHost) {
+            // Avoid stale cache/HMR issues in Vite dev.
+            navigator.serviceWorker.getRegistrations().then((registrations) => {
+              registrations.forEach((registration) => registration.unregister());
+            });
+
+            if ('caches' in window) {
+              caches.keys().then((keys) => {
+                keys.forEach((key) => caches.delete(key));
+              });
+            }
+            return;
+          }
+
+          navigator.serviceWorker.register('/sw.js').catch(() => {
+            // Service worker registration failed, app will still work
+          });
+        });
+      }
+      
+      // Handle PWA install prompt
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        // Dispatch event to notify navbar about install availability
+        window.dispatchEvent(new CustomEvent('pwa-install-available', { detail: { deferredPrompt } }));
+      });
+      
+      window.addEventListener('appinstalled', () => {
+        console.log('SmartCanteen installed as PWA');
+        deferredPrompt = null;
+      });
+    </script>
+  </body>
+</html>
